@@ -1,0 +1,32 @@
+[project]
+name = "qa-test-api"
+version = "1.0.0"
+description = "Test automation for QA Test API"
+requires-python = ">=3.10"
+dependencies = [
+    "pytest>=8.0",
+    "requests>=2.31",
+    "pytest-html>=4.1",
+    "pydantic>=2.5",
+    "locust>=2.20",
+    "python-dotenv>=1.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+markers = [
+    "smoke: core functionality tests",
+    "auth: authentication tests",
+    "crud: create/read/update/delete tests",
+    "tenant: tenant isolation tests",
+    "contract: OpenAPI contract validation tests",
+    "pagination: pagination tests",
+    "validation: input validation tests",
+    "load: load/performance tests",
+]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+]

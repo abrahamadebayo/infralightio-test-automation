@@ -1,0 +1,11 @@
+services:
+  api:
+    image: infralightio/test-integration-api:latest
+    ports:
+      - "${API_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/swagger/doc.json"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
