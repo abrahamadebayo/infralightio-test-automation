@@ -1,0 +1,102 @@
+name: API Test Suite
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_load_tests:
+        description: "Run load tests"
+        type: boolean
+        default: false
+
+env:
+  API_BASE_URL: http://localhost:8080
+  API_BASE_PATH: /api/v1
+  USER1_USERNAME: test1
+  USER1_PASSWORD: test123
+  USER2_USERNAME: test2
+  USER2_PASSWORD: test456
+
+jobs:
+  test:
+    name: Run API Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -e .
+
+      - name: Start API service
+        run: |
+          docker compose up -d --wait
+          echo "Waiting for API to be healthy..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/swagger/doc.json > /dev/null 2>&1; then
+              echo "API is ready"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "API failed to start"
+              docker compose logs
+              exit 1
+            fi
+            sleep 3
+          done
+
+      - name: Run test suite
+        run: |
+          python -m pytest tests/ \
+            --ignore=tests/load \
+            --html=reports/report.html \
+            --self-contained-html \
+            --junitxml=reports/junit.xml \
+            -v \
+            --tb=short \
+            || true
+
+      - name: Run load tests
+        if: github.event_name == 'workflow_dispatch' && inputs.run_load_tests
+        run: |
+          docker compose up -d --force-recreate api
+          sleep 5
+          python -m pytest tests/load/ \
+            --html=reports/load_report.html \
+            --self-contained-html \
+            --junitxml=reports/load_junit.xml \
+            -v \
+            --tb=short \
+            || true
+
+      - name: Test report summary
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Test Results
+          path: reports/junit.xml
+          reporter: java-junit
+          fail-on-error: false
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: reports/
+          retention-days: 30
+
+      - name: Stop API service
+        if: always()
+        run: docker compose down
