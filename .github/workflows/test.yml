@@ -20,6 +20,10 @@ env:
   USER2_USERNAME: test2
   USER2_PASSWORD: test456
 
+permissions:
+  contents: read
+  checks: write
+
 jobs:
   test:
     name: Run API Tests
